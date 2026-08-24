@@ -70,7 +70,8 @@ Column {
     clip: false
     reuseItems: true
     cellWidth: width / root.columnCount
-    cellHeight: Style.space(72)
+    cellHeight: root.service && root.service.artworkEnabled
+      ? Style.space(72) : Style.space(50)
 
     delegate: Item {
       id: resultCell

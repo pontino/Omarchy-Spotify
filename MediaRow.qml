@@ -48,7 +48,7 @@ BorderSurface {
     + Math.max(0, fullActionCount - 1) * Style.space(2)
   readonly property real titleWidthWithFullActions: Math.max(0,
     contentRow.width - artworkSurface.width - fullActionWidth
-      - contentRow.spacing * 2)
+      - contentRow.spacing * (artworkSurface.visible ? 2 : 1))
   readonly property bool compactActions: Api.mediaRowShouldCompact(
     titleMetrics.advanceWidth, titleWidthWithFullActions, fullActionCount)
 
@@ -77,7 +77,7 @@ BorderSurface {
 
   width: parent ? parent.width : implicitWidth
   implicitWidth: Style.space(420)
-  implicitHeight: Style.space(66)
+  implicitHeight: root.artworkEnabled ? Style.space(66) : Style.space(44)
   height: implicitHeight
   radius: Style.cornerRadius
   color: selected || reorderDragging
@@ -172,8 +172,9 @@ BorderSurface {
 
     BorderSurface {
       id: artworkSurface
-      width: parent.height
+      width: root.artworkEnabled ? parent.height : 0
       height: width
+      visible: root.artworkEnabled
       radius: Style.spacing.labelGap
       color: Style.normalFillFor(root.foreground, root.accent)
       borderSpec: Border.controlSpec("normal", root.foreground, root.accent)
@@ -213,7 +214,7 @@ BorderSurface {
 
     Column {
       width: Math.max(20, parent.width - artworkSurface.width - actionRow.width
-        - parent.spacing * 2)
+        - parent.spacing * (artworkSurface.visible ? 2 : 1))
       anchors.verticalCenter: parent.verticalCenter
       spacing: Style.space(3)
 

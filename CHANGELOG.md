@@ -2,9 +2,10 @@
 
 ## Unreleased
 - Add a "Show artwork" setting (On by default). When off, album and playlist
-  covers are never downloaded or shown. Lists, now-playing, detail pages, and the
-  mini-player show icon placeholders instead. Lyrics plugins keep receiving
-  cover URLs.
+  covers are never downloaded and the app becomes text-only: artwork tiles are
+  removed entirely and their space is given to titles and controls across the
+  mini-player, now-playing card, lists, and detail pages. Lyrics plugins keep
+  receiving cover URLs.
 
 - Keep popups drawn inside the player (keyboard shortcuts help, menus, and
   pickers) readable on translucent themes. They reuse the theme's popup

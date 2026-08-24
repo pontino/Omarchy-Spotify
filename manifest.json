@@ -5,7 +5,7 @@
   "version": "1.0.3",
   "author": "QuickshellSpotify",
   "license": "MIT",
-  "description": "Spotify in Quickshell with all the features you need—using about 60 MB of memory versus roughly 950 MB for the official client.",
+  "description": "Spotify in Quickshell with all the features you need\u2014using about 60 MB of memory versus roughly 950 MB for the official client.",
   "kinds": [
     "service",
     "bar-widget",
@@ -19,7 +19,7 @@
   },
   "barWidget": {
     "displayName": "Omarchy Spotify",
-    "description": "Spotify in Quickshell with all the features you need—using about 60 MB of memory versus roughly 950 MB for the official client.",
+    "description": "Spotify in Quickshell with all the features you need\u2014using about 60 MB of memory versus roughly 950 MB for the official client.",
     "category": "Media",
     "aliases": [
       "spotify",
@@ -42,7 +42,8 @@
       "scrollSpeed": "1",
       "maxBarTextWidth": "240",
       "fixedBarWidth": "Off",
-      "audioQuality": "320 kbps"
+      "audioQuality": "320 kbps",
+      "showArtwork": "On"
     },
     "schema": [
       {
@@ -186,6 +187,17 @@
         ],
         "defaultValue": "320 kbps",
         "description": "Takes effect the next time playback starts."
+      },
+      {
+        "key": "showArtwork",
+        "type": "enum",
+        "label": "Show artwork",
+        "options": [
+          "On",
+          "Off"
+        ],
+        "defaultValue": "On",
+        "description": "Download and display cover artwork."
       }
     ]
   }

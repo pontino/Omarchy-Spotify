@@ -39,6 +39,7 @@ Item {
     shortcutPlayer: "Omarchy Music app",
     shortcutHints: "On",
     showLyrics: "On",
+    showArtwork: "On",
     showTrackTitle: "On",
     showArtistName: "Off",
     showPausedTrack: "On",
@@ -58,6 +59,7 @@ Item {
     settings.shortcutPlayer)
   readonly property bool shortcutHintsEnabled: String(settings.shortcutHints || "On") !== "Off"
   readonly property bool showLyrics: String(settings.showLyrics || "On") !== "Off"
+  readonly property bool artworkEnabled: String(settings.showArtwork || "On") !== "Off"
   readonly property bool showTrackTitle: String(settings.showTrackTitle || "On") !== "Off"
   readonly property bool showArtistName: String(settings.showArtistName || "Off") === "On"
   readonly property bool showPausedTrack: String(settings.showPausedTrack || "On") !== "Off"
@@ -487,7 +489,7 @@ Item {
     var next = defaults()
     var source = values || {}
     var keys = ["deviceName", "idleShutdownMinutes", "showMiniPlayer",
-      "shortcutPlayer", "shortcutHints", "showLyrics", "showTrackTitle", "showArtistName",
+      "shortcutPlayer", "shortcutHints", "showLyrics", "showArtwork", "showTrackTitle", "showArtistName",
       "showPausedTrack", "scrollBarText", "scrollSpeed", "maxBarTextWidth",
       "fixedBarWidth", "audioQuality"]
     for (var i = 0; i < keys.length; i++) {
@@ -501,6 +503,7 @@ Item {
     next.shortcutPlayer = Api.normalizedShortcutPlayer(next.shortcutPlayer)
     next.shortcutHints = Api.normalizedShortcutHints(next.shortcutHints)
     next.showLyrics = String(next.showLyrics || "On") === "Off" ? "Off" : "On"
+    next.showArtwork = String(next.showArtwork || "On") === "Off" ? "Off" : "On"
     next.showTrackTitle = String(next.showTrackTitle || "On") === "Off" ? "Off" : "On"
     next.showArtistName = String(next.showArtistName || "Off") === "On" ? "On" : "Off"
     next.showPausedTrack = String(next.showPausedTrack || "On") === "Off" ? "Off" : "On"

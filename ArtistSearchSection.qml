@@ -91,6 +91,7 @@ Column {
         showPlaylist: root.showPlaylist
         showSave: root.showSave
         saved: root.service ? root.service.isSaved(modelData) : false
+        artworkEnabled: !root.service || root.service.artworkEnabled
         onActivated: function(item) {
           root.activated(item, root.sourceItems, root.contextUri)
         }

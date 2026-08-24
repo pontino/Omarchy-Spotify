@@ -49,6 +49,7 @@ Item {
   property string draftDeviceName: "Omarchy Spotify"
   property string draftIdleMinutes: "15"
   property bool draftShowMiniPlayer: true
+  property bool draftShowArtwork: true
   property string draftShortcutPlayer: "Omarchy Music app"
   property bool draftShortcutHints: true
   property bool draftShowLyrics: true
@@ -184,6 +185,7 @@ Item {
     draftDeviceName = service.deviceName
     draftIdleMinutes = String(service.idleShutdownMinutes)
     draftShowMiniPlayer = service.showMiniPlayer
+    draftShowArtwork = service.artworkEnabled
     draftShortcutPlayer = service.shortcutPlayer
     draftShortcutHints = service.shortcutHintsEnabled
     draftShowLyrics = service.showLyrics
@@ -204,6 +206,7 @@ Item {
       idleShutdownMinutes: Math.max(0, Math.min(1440,
         Math.floor(Number(draftIdleMinutes) || 0))),
       showMiniPlayer: draftShowMiniPlayer ? "On" : "Off",
+      showArtwork: draftShowArtwork ? "On" : "Off",
       shortcutPlayer: draftShortcutPlayer,
       shortcutHints: draftShortcutHints ? "On" : "Off",
       showLyrics: draftShowLyrics ? "On" : "Off",
@@ -4026,7 +4029,7 @@ Item {
                   id: playerArtworkImage
                   anchors.fill: parent
                   anchors.margins: Style.space(2)
-                  requestedSource: root.service
+                  requestedSource: root.service && root.service.artworkEnabled
                     ? Api.idleMediaText(root.service.artUrl,
                       root.service.lastPlayedItem, "imageUrl", "")
                     : ""
@@ -4720,7 +4723,7 @@ Item {
                 id: detailArtwork
                 anchors.fill: parent
                 anchors.margins: Style.space(2)
-                requestedSource: root.service && root.service.detailItem
+                requestedSource: root.service && root.service.artworkEnabled && root.service.detailItem
                   ? String(root.service.detailItem.imageUrl || "") : ""
                 sourceSize.width: 256
                 sourceSize.height: 256
@@ -4986,6 +4989,7 @@ Item {
                 showQueue: false
                 showPlaylist: false
                 showSave: true
+                artworkEnabled: !root.service || root.service.artworkEnabled
                 saved: root.service && root.service.isSaved(itemData)
                 onActivated: function(item) { root.activateMedia(item, [item], item.uri) }
                 onOpenRequested: function(item) { root.openItem(item) }
@@ -5154,6 +5158,7 @@ Item {
                       && searchMediaGroup.rowData.sectionId === "songs"
                     showPlaylist: showQueue
                     showSave: true
+                    artworkEnabled: !root.service || root.service.artworkEnabled
                     saved: root.service && root.service.isSaved(modelData)
                     onActivated: function(item) {
                       var sectionId = searchMediaGroup.rowData.sectionId
@@ -5809,6 +5814,7 @@ Item {
               && root.cursorOn("page", "list")
             showQueue: false
             showSave: true
+            artworkEnabled: !root.service || root.service.artworkEnabled
             saved: root.service && root.service.isSaved(modelData)
             onActivated: function(item) {
               root.activateMedia(item, queueRoot.visibleItems, "")
@@ -6603,6 +6609,42 @@ Item {
               Text {
                 width: parent.width
                 text: "After a shortcut or Tab, matching buttons glow and show the next key. Hold Ctrl, Shift, or Alt to see those chords, or press Ctrl+H to turn them off. Turn them on here again whenever you want the overlay back."
+                color: root.muted
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.bodySmall
+                wrapMode: Text.WordWrap
+              }
+            }
+
+            Column {
+              width: parent.width
+              spacing: Style.space(6)
+
+              Text {
+                text: "ARTWORK"
+                color: root.muted
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                font.bold: true
+              }
+
+              Button {
+                text: "Artwork · " + (root.draftShowArtwork ? "On" : "Off")
+                iconText: "󰀥"
+                foreground: root.foreground
+                selected: root.draftShowArtwork
+                tooltipText: root.draftShowArtwork
+                  ? "Album and playlist covers are shown"
+                  : "Covers are never downloaded; icon placeholders are shown instead"
+                onClicked: {
+                  root.draftShowArtwork = !root.draftShowArtwork
+                  root.persistDraftSettings()
+                }
+              }
+
+              Text {
+                width: parent.width
+                text: "Turn off to stop downloading album and playlist covers everywhere in the app. Icon placeholders take their place; lyrics plugins keep their own artwork."
                 color: root.muted
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.bodySmall

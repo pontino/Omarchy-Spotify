@@ -863,7 +863,7 @@ BarWidget {
             id: popupArtwork
             anchors.fill: parent
             anchors.margins: Style.space(3)
-            requestedSource: root.popupOpen && root.spotify
+            requestedSource: root.popupOpen && root.spotify && root.spotify.artworkEnabled
               ? Api.idleMediaText(root.spotify.artUrl,
                 root.spotify.lastPlayedItem, "imageUrl", "")
               : ""

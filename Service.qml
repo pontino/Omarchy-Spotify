@@ -36,6 +36,7 @@ Item {
     deviceName: "Omarchy Spotify",
     idleShutdownMinutes: 15,
     showMiniPlayer: "On",
+    showVinylRecord: "Off",
     shortcutPlayer: "Omarchy Music app",
     shortcutHints: "On",
     showLyrics: "On",
@@ -55,6 +56,7 @@ Item {
   readonly property int idleShutdownMinutes: Math.max(0, Math.min(1440,
     Math.floor(Number(settings.idleShutdownMinutes) || 0)))
   readonly property bool showMiniPlayer: String(settings.showMiniPlayer || "On") !== "Off"
+  readonly property bool showVinylRecord: String(settings.showVinylRecord || "Off") === "On"
   readonly property string shortcutPlayer: Api.normalizedShortcutPlayer(
     settings.shortcutPlayer)
   readonly property bool shortcutHintsEnabled: String(settings.shortcutHints || "On") !== "Off"
@@ -489,7 +491,7 @@ Item {
     var next = defaults()
     var source = values || {}
     var keys = ["deviceName", "idleShutdownMinutes", "showMiniPlayer",
-      "shortcutPlayer", "shortcutHints", "showLyrics", "showArtwork", "showTrackTitle", "showArtistName",
+      "showVinylRecord", "shortcutPlayer", "shortcutHints", "showLyrics", "showArtwork", "showTrackTitle", "showArtistName",
       "showPausedTrack", "scrollBarText", "scrollSpeed", "maxBarTextWidth",
       "fixedBarWidth", "audioQuality"]
     for (var i = 0; i < keys.length; i++) {
@@ -500,6 +502,7 @@ Item {
     next.idleShutdownMinutes = Math.max(0, Math.min(1440,
       Math.floor(Number(next.idleShutdownMinutes) || 0)))
     next.showMiniPlayer = String(next.showMiniPlayer || "On") === "Off" ? "Off" : "On"
+    next.showVinylRecord = String(next.showVinylRecord || "Off") === "On" ? "On" : "Off"
     next.shortcutPlayer = Api.normalizedShortcutPlayer(next.shortcutPlayer)
     next.shortcutHints = Api.normalizedShortcutHints(next.shortcutHints)
     next.showLyrics = String(next.showLyrics || "On") === "Off" ? "Off" : "On"

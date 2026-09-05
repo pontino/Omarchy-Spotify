@@ -44,7 +44,8 @@
       "maxBarTextWidth": "240",
       "fixedBarWidth": "Off",
       "audioQuality": "320 kbps",
-      "showArtwork": "On"
+      "showArtwork": "On",
+      "clientId": ""
     },
     "schema": [
       {
@@ -210,6 +211,13 @@
         ],
         "defaultValue": "On",
         "description": "Download and display cover artwork."
+      },
+      {
+        "key": "clientId",
+        "type": "string",
+        "label": "Spotify Developer app client ID",
+        "defaultValue": "",
+        "description": "Optional personal Spotify Developer app client ID, to bypass the shared app's per-app rate-limit bucket. Empty keeps the plugin's client. Only a 32-hex ID is accepted; anything else is ignored and the shipped client is kept. Changing it signs you in again with your app."
       }
     ]
   }

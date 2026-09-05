@@ -18,6 +18,11 @@
   the configured maximum width while a track is shown, so the widget and the
   widgets laid out after it no longer shift when the song title length
   changes. Off by default; unavailable while the width is unlimited.
+- Keep the last played song loaded while nothing is playing, the way the
+  desktop app's footer does. The bar popup and player show it in place of
+  "Nothing playing", and Play continues inside the playlist or album it came
+  from, starting the local receiver first when it has idled out. Seek, skip,
+  shuffle, and repeat stay disabled until something is actually loaded.
 - Apply volume while the volume slider is dragged, in both the bar popup and the
   player, instead of waiting for the mouse release. Commands are coalesced per
   backend: 80 ms for local spotifyd, 250 ms for Spotify Connect devices so the

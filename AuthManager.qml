@@ -26,8 +26,13 @@ Item {
   // 32-hex value is accepted, so a typo can never redirect the OAuth flow or
   // the keyring entry (both are scoped per client ID).
   property string customClientId: ""
-  readonly property string resolvedClientId: /^[0-9a-f]{32}$/i.test(String(customClientId || ""))
-    ? customClientId.toLowerCase() : clientId
+  readonly property bool validClientId: customClientId === "" || /^[0-9a-f]{32}$/i.test(customClientId)
+  readonly property string resolvedClientId: validClientId
+    ? (customClientId ? customClientId.toLowerCase() : clientId) : ""
+  property bool initialized: false
+  property bool switchingIdentity: false
+  Component.onCompleted: initialized = true
+  onResolvedClientIdChanged: if (initialized) changeIdentity()
   property int oauthPort: 8989
   property string callbackPath: "/login"
   property var scopes: Api.SCOPES
@@ -61,6 +66,32 @@ Item {
   signal loggedOut()
   signal sessionUnavailable(string reason)
 
+  function changeIdentity() {
+    switchingIdentity = true
+    cancelLogin()
+    lookupHandled = true
+    secretLookup.running = false
+    resetMemorySession()
+    sessionChecked = false
+    finishWaiters("", "Spotify application changed. Sign in again.")
+    loggedOut()
+    lastError = validClientId ? "" : "Enter a Spotify client ID containing exactly 32 hexadecimal characters."
+    identityDrain.restart()
+  }
+
+  Timer {
+    id: identityDrain
+    interval: 50
+    repeat: true
+    onTriggered: {
+      if (secretLookup.running || keyringStore.running || keyringClear.running
+          || pkceGenerator.running || callbackListener.running) return
+      stop()
+      root.switchingIdentity = false
+      if (root.validClientId) root.restoreSession()
+    }
+  }
+
   function safeError(value) {
     return Api.redact(String(value || ""))
   }
@@ -91,6 +122,10 @@ Item {
 
   function withAccessToken(callback) {
     if (typeof callback !== "function") return
+    if (switchingIdentity || !validClientId) {
+      callback("", lastError || "Spotify application is changing. Try again.")
+      return
+    }
     if (tokenIsFresh()) {
       callback(accessToken, "")
       return
@@ -106,6 +141,7 @@ Item {
   }
 
   function restoreSession() {
+    if (switchingIdentity || !validClientId) return
     sessionChecked = false
     if (secretLookup.running || refreshBusy) return
     lookupPurpose = "restore"
@@ -120,11 +156,12 @@ Item {
       "kind", "refresh-token",
       "client-id", String(resolvedClientId)
     ]
+    secretLookup.identity = resolvedClientId
     secretLookup.running = true
   }
 
   function handleSecretLookup(raw) {
-    if (lookupHandled) return
+    if (lookupHandled || switchingIdentity || secretLookup.identity !== resolvedClientId) return
     lookupHandled = true
     var token = String(raw || "").trim()
     var purpose = lookupPurpose
@@ -140,11 +177,13 @@ Item {
 
   function postTokenRequest(body, previousRefreshToken, callback) {
     var serial = ++tokenRequestSerial
+    var identity = resolvedClientId
     var request = new XMLHttpRequest()
     tokenRequest = request
     request.onreadystatechange = function() {
       if (request.readyState !== XMLHttpRequest.DONE) return
-      if (serial !== root.tokenRequestSerial) return
+      if (serial !== root.tokenRequestSerial || identity !== root.resolvedClientId) return
+      tokenTimeout.stop()
       if (root.tokenRequest === request) root.tokenRequest = null
       var result = OAuth.parseTokenResponse(request.status, request.responseText,
         previousRefreshToken)
@@ -152,6 +191,7 @@ Item {
     }
     request.open("POST", Api.TOKEN_URL)
     request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+    tokenTimeout.restart()
     request.send(body)
   }
 
@@ -190,21 +230,24 @@ Item {
     if (!refreshToken || keyringStore.running) return
     keyringWriteToken = String(refreshToken)
     keyringStore.command = [pluginDir + "/scripts/keyring-store.sh", String(resolvedClientId)]
+    keyringStore.identity = resolvedClientId
     keyringStore.running = true
   }
 
-  function clearStoredToken() {
+  function clearStoredToken(identity) {
     if (keyringClear.running) return
     keyringClear.command = [
       "secret-tool", "clear",
       "service", "quickshell-spotify",
       "kind", "refresh-token",
-      "client-id", String(resolvedClientId)
+      "client-id", String(identity || resolvedClientId)
     ]
     keyringClear.running = true
   }
 
   function logout() {
+    lookupHandled = true
+    secretLookup.running = false
     cancelLogin()
     resetMemorySession()
     sessionChecked = true
@@ -216,7 +259,7 @@ Item {
   }
 
   function beginLogin() {
-    if (loginBusy || refreshBusy) return
+    if (loginBusy || refreshBusy || switchingIdentity || !validClientId) return
     lastError = ""
     loginBusy = true
     callbackHandled = false
@@ -327,6 +370,7 @@ Item {
   }
 
   function cancelLogin() {
+    tokenTimeout.stop()
     authTimeout.stop()
     authOpenDelay.stop()
     callbackStopTimer.stop()
@@ -340,6 +384,17 @@ Item {
     exchangingCode = false
     callbackHandled = false
     clearPkce()
+  }
+
+  Timer {
+    id: tokenTimeout
+    interval: 15000
+    onTriggered: {
+      root.cancelLogin()
+      root.lastError = "Spotify authorization took too long. Try again."
+      root.finishWaiters("", root.lastError)
+      root.sessionUnavailable(root.lastError)
+    }
   }
 
   Timer {
@@ -391,6 +446,7 @@ Item {
 
   Process {
     id: secretLookup
+    property string identity: ""
     stdout: SplitParser {
       splitMarker: "\n"
       onRead: function(line) { root.handleSecretLookup(line) }
@@ -403,6 +459,7 @@ Item {
 
   Process {
     id: keyringStore
+    property string identity: ""
     stdinEnabled: true
     stdout: StdioCollector { waitForEnd: true }
     stderr: StdioCollector { waitForEnd: true }
@@ -412,11 +469,11 @@ Item {
     }
     onExited: function(exitCode) {
       root.keyringWriteToken = ""
-      if (exitCode !== 0)
+      if (exitCode !== 0 && identity === root.resolvedClientId && !root.switchingIdentity)
         root.lastError = "Spotify connected, but the session could not be saved securely. You may need to sign in again after restarting"
       if (root.logoutPendingClear) {
         root.logoutPendingClear = false
-        root.clearStoredToken()
+        root.clearStoredToken(identity)
       }
     }
   }

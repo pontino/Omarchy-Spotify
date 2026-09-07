@@ -217,7 +217,7 @@
         "type": "string",
         "label": "Spotify Developer app client ID",
         "defaultValue": "",
-        "description": "Optional personal Spotify Developer app client ID, to bypass the shared app's per-app rate-limit bucket. Empty keeps the plugin's client. Only a 32-hex ID is accepted; anything else is ignored and the shipped client is kept. Changing it signs you in again with your app."
+        "description": "Optional personal Spotify Developer app client ID, with its own quota. Empty keeps the plugin's client. A valid 32-hex ID is required. Changing it clears the current session and requires authorization for your app."
       }
     ]
   }

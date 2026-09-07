@@ -266,7 +266,6 @@ BorderSurface {
         id: saveButton
         objectName: "media-row-save"
         visible: root.saveActionVisible
-          && (!root.compactActions || root.actionsExpanded)
         iconText: "󰋑"
         foreground: Color.urgent
         accent: Color.urgent

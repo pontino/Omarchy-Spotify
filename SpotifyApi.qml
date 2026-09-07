@@ -288,6 +288,12 @@ Item {
     return enqueueJob(job)
   }
 
+  function cancelAll() {
+    var jobs = timedJobs.slice()
+    for (var i = 0; i < jobs.length; i++) abortRequest(jobs[i].handle)
+    cancelSearch()
+  }
+
   function cancelSearch() {
     searchSerial++
     abortRequest(searchRequest)

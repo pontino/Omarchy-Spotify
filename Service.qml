@@ -429,9 +429,9 @@ Item {
   readonly property bool detailRestorePending: !!detailItem
     && detailItem.type === "playlist" && Api.playlistRestorePending(
       detailItems.length, detailRestoreTargetCount, detailLoading, detailNext)
-  readonly property int detailRememberedItemCount: Math.min(cacheLimit,
+  readonly property int detailRememberedItemCount:
     Api.normalizedPlaylistRestoreCount(Math.max(detailItems.length,
-      detailRestoreTargetCount)))
+      detailRestoreTargetCount))
 
   property int dataSerial: 0
   property var visibleSurfaces: ({})
@@ -525,7 +525,7 @@ Item {
     // A personal Spotify client ID opts out of the shared rate-limit bucket.
     // Anything that is not a 32-hex ID (including empty) means "keep shipped".
     var customClientId = String(next.clientId || "").trim()
-    next.clientId = /^[0-9a-f]{32}$/i.test(customClientId) ? customClientId.toLowerCase() : ""
+    next.clientId = customClientId.toLowerCase()
     return next
   }
 
@@ -1470,9 +1470,9 @@ Item {
             : Api.normalizePage(payload, mapper)
           var items = (append
             ? Api.mergeUnique(root[spec.items], page.items) : page.items)
-            .slice(0, root.cacheLimit)
+
           root[spec.items] = items
-          root[spec.next] = items.length >= root.cacheLimit ? "" : page.next
+          root[spec.next] = page.next
           root[spec.loaded] = true
           if (spec.checkSaved === true) root.checkSavedItems(page.items)
           else root.markItemsSaved(page.items, true)
@@ -2126,7 +2126,7 @@ Item {
         return
       }
       var page = root.detailPageFromPayload(payload, type, parent)
-      root.detailItems = page.items.slice(0, root.cacheLimit)
+      root.detailItems = page.items
       root.detailNext = page.next
       root.detailLoading = false
       root.checkSavedItems(root.detailItems)
@@ -2184,13 +2184,16 @@ Item {
   function requestArtistCatalog(type, append, expectedDetail, expectedCatalog, artist) {
     var albums = type === "album"
     var playlists = type === "playlist"
+    var discography = albums && !artistCatalogQuery && artist.id
     var path = append ? (albums ? artistAlbumsNext
-      : (playlists ? artistPlaylistsNext : artistSongsNext)) : "/search"
+      : (playlists ? artistPlaylistsNext : artistSongsNext))
+      : (discography ? "/artists/" + encodeURIComponent(artist.id) + "/albums" : "/search")
     if (!path) return
     if (albums) artistAlbumsLoading = true
     else if (playlists) artistPlaylistsLoading = true
     else artistSongsLoading = true
-    var query = append ? null : {
+    var query = append ? null : discography
+      ? { include_groups: "album,single,compilation", limit: 50 } : {
       q: playlists
         ? Api.artistPlaylistSearchText(artist.name, artistCatalogQuery)
         : Api.catalogSearchText(artist.name, artistCatalogQuery),
@@ -2206,7 +2209,9 @@ Item {
       root.detailLoading = root.artistCatalogLoading
       if (error) { root.fail(error); return }
       root.applyArtistCatalogPage(type, append,
-        Api.normalizeSearchPage(payload, type, 96))
+        discography ? Api.normalizePage(payload, function(item) {
+          return Api.normalizeAlbum(item, 96)
+        }) : Api.normalizeSearchPage(payload, type, 96))
     })
   }
 
@@ -2214,8 +2219,8 @@ Item {
     var existing = type === "album" ? artistAlbums
       : (type === "playlist" ? artistPlaylists : artistSongs)
     var items = (append ? Api.mergeUnique(existing, page.items) : page.items)
-      .slice(0, cacheLimit)
-    var next = items.length >= cacheLimit ? "" : page.next
+
+    var next = page.next
     if (type === "album") {
       artistAlbums = items
       artistAlbumsNext = next
@@ -2300,8 +2305,8 @@ Item {
       var page = root.detailPageFromPayload(payload, type, parent)
       root.detailItems = (type === "playlist"
         ? root.detailItems.concat(page.items)
-        : Api.mergeUnique(root.detailItems, page.items)).slice(0, root.cacheLimit)
-      root.detailNext = root.detailItems.length >= root.cacheLimit ? "" : page.next
+        : Api.mergeUnique(root.detailItems, page.items))
+      root.detailNext = page.next
       root.checkSavedItems(page.items)
       if (type === "playlist" && Api.playlistRestoreShouldContinue(
           root.detailItems.length, root.detailRestoreTargetCount,
@@ -2312,7 +2317,7 @@ Item {
 
   function ensureDetailItemCount(value) {
     if (!detailItem || detailItem.type !== "playlist") return
-    var target = Math.min(cacheLimit, Api.normalizedPlaylistRestoreCount(value))
+    var target = Api.normalizedPlaylistRestoreCount(value)
     if (target <= detailItems.length) return
     detailRestoreTargetCount = Math.max(detailRestoreTargetCount, target)
     if (detailLoading) return
@@ -3700,7 +3705,10 @@ Item {
       }
       if (root.localActivationRequested) deviceProbeTimer.restart()
     }
-    function onLoggedOut() { root.clearData() }
+    function onLoggedOut() {
+      spotifyApi.cancelAll()
+      root.clearData()
+    }
     function onSessionUnavailable(reason) {
       root.loginFlowActive = false
       if (reason) root.lastError = root.safeError(reason)

@@ -151,23 +151,18 @@ and Spotify rate-limits requests **per app**, not per user. When that shared
 quota runs out you see `Spotify is busy. Try again in N seconds.` and searches
 that stall even though nothing is wrong on your side.
 
-Bring your own quota with a free personal [Spotify Developer app](https://developer.spotify.com/dashboard):
+You can use a personal [Spotify Developer app](https://developer.spotify.com/dashboard)
+with a separate quota. This does not provide unlimited requests or restore restricted endpoints.
 
-1. Create an app and add a redirect URI of `http://127.0.0.1:8989/login`—the
-   plugin's OAuth port is `8989` with a `/login` path.
-2. Paste the app's client ID into the **Spotify Developer app client ID**
-   setting, or set it directly in
-   `~/.config/omarchy/plugins/quickshell.spotify/AuthManager.qml` on the
-   `property string customClientId: "…"` line. Any value that is not a 32-hex
-   client ID is ignored and the shipped client is kept.
-3. Restart the shell (`omarchy-restart-shell`) and sign in again. Session tokens
-   are stored per client ID, so a fresh login is expected.
+1. Add `http://127.0.0.1:8989/login` as the app's redirect URI.
+2. Set **Spotify Developer app client ID** in the plugin settings. Leave it empty
+   to use the shipped app. Invalid IDs produce an error.
+3. Authorize the selected app. Changing the ID clears the current session and
+   account data; stored sessions are isolated by client ID.
 
-Trade-offs: new apps run in Spotify's development mode, where the Web API no
-longer returns editorial playlists, track lists of playlists owned by others,
-or `/recommendations`. Playback is unaffected—audio flows through librespot, not
-the Web API. A plugin update overwrites an edited `AuthManager.qml`, so prefer
-the setting, which survives updates.
+Development apps require an eligible Premium owner and allowlisted users, and
+have endpoint restrictions. See Spotify's [quota modes](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
+The local Connect authorization remains separate.
 
 ## Remove it completely
 

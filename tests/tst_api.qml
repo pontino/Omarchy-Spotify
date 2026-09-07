@@ -1192,7 +1192,7 @@ TestCase {
     var active = { id: "phone", active: true }
     var fallback = { id: "omarchy", active: false }
 
-    compare(Api.playbackTargetDeviceId(active, false), "")
+    compare(Api.playbackTargetDeviceId(active, false), "phone")
     compare(Api.playbackTargetDeviceId(active, true), "phone")
     compare(Api.playbackTargetDeviceId(fallback, false), "omarchy")
     compare(Api.playbackTargetDeviceId(null, false), "")
@@ -1208,7 +1208,7 @@ TestCase {
 
     compare(Api.preferredPlaybackDevice([speaker, local], "", false).id,
       "speaker")
-    compare(Api.playbackTargetDeviceId(speaker, false), "")
+    compare(Api.playbackTargetDeviceId(speaker, false), "speaker")
   }
 
   function test_unavailableExplicitDeviceFallsBackToLocal() {

@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Services.Mpris
 
@@ -48,7 +49,8 @@ Item {
     scrollSpeed: "1",
     maxBarTextWidth: "240",
     fixedBarWidth: "Off",
-    audioQuality: "320 kbps"
+    audioQuality: "320 kbps",
+    clientId: ""
   })
   property var settings: Api.shallowCopy(defaultSettingValues)
 
@@ -417,6 +419,8 @@ Item {
   property bool queueLoading: false
   property bool devicesLoading: false
   property alias searchLoading: searchController.searchLoading
+  readonly property double searchCooldownUntil: spotifyApi.rateLimitedUntil
+  function searchProgressText(timestamp) { return searchController.progressText(timestamp) }
   property string lastError: ""
   property string statusMessage: ""
 
@@ -904,7 +908,10 @@ Item {
     visibleLocalDeviceRefreshAttempts = 0
   }
 
+  property bool localPlaybackStopped: false
+
   function ensureVisibleLocalReceiver() {
+    if (localPlaybackStopped || daemonManager.terminalFailure) return
     var action = Api.visibleLocalReceiverAction(uiVisible,
       fullyConnected && daemonManager.credentialsAvailable,
       daemonManager.running, daemonManager.busy)
@@ -918,6 +925,7 @@ Item {
   }
 
   function refreshVisibleLocalDevice() {
+    if (localPlaybackStopped || daemonManager.terminalFailure) return
     var action = Api.visibleLocalReceiverAction(uiVisible,
       fullyConnected && daemonManager.credentialsAvailable,
       daemonManager.running, daemonManager.busy)
@@ -1460,8 +1468,8 @@ Item {
     root[spec.loading] = true
     spotifyApi.request("GET", path, append ? null : spec.query, null,
       function(status, payload, error) {
-        root[spec.loading] = false
         if (expected !== root.dataSerial) return
+        root[spec.loading] = false
         if (error) root.fail(error)
         else {
           var mapper = root.libraryMapper(spec.mapper)
@@ -2083,8 +2091,8 @@ Item {
     var type = String(item.type || "")
     if (["artist", "album", "playlist", "show", "audiobook"].indexOf(type) < 0) return
     var serial = ++detailSerial
-    detailRestoreTargetCount = type === "playlist" ? Math.min(cacheLimit,
-      Api.normalizedPlaylistRestoreCount(restoredItemCount)) : 0
+    detailRestoreTargetCount = type === "playlist"
+      ? Api.normalizedPlaylistRestoreCount(restoredItemCount) : 0
     detailItem = item
     detailItems = []
     detailNext = ""
@@ -2210,7 +2218,7 @@ Item {
       if (error) { root.fail(error); return }
       root.applyArtistCatalogPage(type, append,
         discography ? Api.normalizePage(payload, function(item) {
-          return Api.normalizeAlbum(item, 96)
+          return Api.normalizeContext(item, 96)
         }) : Api.normalizeSearchPage(payload, type, 96))
     })
   }
@@ -2714,8 +2722,8 @@ Item {
     queueLoading = true
     spotifyApi.request("GET", "/me/player/queue", null, null,
       function(status, payload, error) {
-        root.queueLoading = false
         if (expected !== root.dataSerial) return
+        root.queueLoading = false
         if (error) root.fail(error)
         else {
           var source = payload && Array.isArray(payload.queue) ? payload.queue : []
@@ -2733,10 +2741,49 @@ Item {
 
   SearchController {
     id: searchController
-    spotifyApi: spotifyApi
+    api: spotifyApi
     dataSerial: root.dataSerial
     onRememberSearch: term => root.rememberSearch(term)
     onCheckSavedItems: items => root.checkSavedItems(items)
+  }
+
+  property var playerSurfaces: []
+  function registerPlayerSurface(surface) {
+    if (playerSurfaces.indexOf(surface) < 0)
+      playerSurfaces = playerSurfaces.concat([surface])
+  }
+  function unregisterPlayerSurface(surface) {
+    playerSurfaces = playerSurfaces.filter(function(item) { return item && item !== surface })
+  }
+  function shortcutSurface() {
+    var focused = Hyprland.focusedMonitor
+    for (var i = 0; i < playerSurfaces.length; i++) {
+      var surface = playerSurfaces[i]
+      var window = surface ? surface.QsWindow.window : null
+      if (window && window.screen && focused && window.screen.name === focused.name)
+        return surface
+    }
+    return playerSurfaces.length ? playerSurfaces[0] : null
+  }
+  function invokePlayerShortcut(method) {
+    var surface = shortcutSurface()
+    return surface && typeof surface[method] === "function"
+      ? surface[method]() : "unavailable"
+  }
+  IpcHandler {
+    target: "quickshell.spotify.player"
+    function configuredPlayer(): string { return root.shortcutPlayer }
+    function togglePlayer(): string { return root.invokePlayerShortcut("toggleConfiguredPlayerShortcut") }
+    function toggleMiniPlayer(): string { return root.invokePlayerShortcut("toggleMiniPlayerShortcut") }
+    function toggleFullPlayer(): string { return root.invokePlayerShortcut("toggleFullPlayerShortcut") }
+    function volumeUp(): string {
+      var surface = root.shortcutSurface()
+      return surface && surface.adjustVolume(0.05) ? "ok" : "unavailable"
+    }
+    function volumeDown(): string {
+      var surface = root.shortcutSurface()
+      return surface && surface.adjustVolume(-0.05) ? "ok" : "unavailable"
+    }
   }
 
   function search(term, type, force) { return searchController.search(term, type, force) }
@@ -2977,6 +3024,7 @@ Item {
   }
 
   function playItem(item, sourceItems, contextUri, successMessage, explicitRadio) {
+    localPlaybackStopped = false
     var playbackSerial = ++radioSerial
     var body = Api.playbackBody(item, sourceItems, contextUri)
     if (!body) {
@@ -3057,18 +3105,44 @@ Item {
     var successMessage = pendingPlaybackMessage
     var radioPlaylist = pendingPlaybackRadio
     var playbackSerial = pendingPlaybackSerial
+    var account = dataSerial
+    var selection = selectedDeviceId
+    var explicit = selectedDeviceExplicit
+    var target = deviceForId(deviceId)
     if (!body) return
     clearPendingPlayback(true)
-    apiAction("PUT", "/me/player/play", { device_id: deviceId }, body, successMessage,
-      function(ok) {
-        if (ok) {
-          if (playbackSerial === root.radioSerial)
-            root.radioContextSelected = !!radioPlaylist
+    function current() {
+      return account === root.dataSerial && playbackSerial === root.radioSerial
+        && selection === root.selectedDeviceId && explicit === root.selectedDeviceExplicit
+        && !root.localPlaybackStopped
+    }
+    function dispatch(retried) {
+      if (!current()) return
+      spotifyApi.request("PUT", "/me/player/play", { device_id: deviceId }, body,
+        function(status, payload, error) {
+          if (!current()) return
+          if (error && !retried && status === 404 && payload && payload.error
+              && payload.error.reason === "NO_ACTIVE_DEVICE" && target
+              && target.local && !target.restricted && deviceId) {
+            // Wake only the already chosen local receiver, once. Remote and
+            // restricted devices retain their own failure and selection.
+            spotifyApi.request("PUT", "/me/player", null,
+              { device_ids: [deviceId], play: false }, function(code, result, failure) {
+                if (!current()) return
+                if (failure) root.fail(failure)
+                else dispatch(true)
+              }, { priority: "interactive", retryRateLimit: false })
+            return
+          }
+          if (error) { root.fail(error); return }
+          root.succeed(successMessage)
+          root.radioContextSelected = !!radioPlaylist
           root.selectedDeviceId = String(deviceId || root.selectedDeviceId)
           root.loadDevices()
           root.loadQueue()
-        }
-      })
+        }, { priority: "interactive", retryRateLimit: false })
+    }
+    dispatch(false)
   }
 
   function startRadio(item) {
@@ -3443,14 +3517,17 @@ Item {
   }
 
   function startEngine() {
+    localPlaybackStopped = false
     noteActivity()
     localActivationRequested = true
     deviceProbeAttempts = 0
-    daemonManager.start()
+    daemonManager.start(true)
     deviceProbeTimer.restart()
   }
 
   function stopEngine() {
+    localPlaybackStopped = true
+    cancelVisibleLocalDeviceRefresh()
     clearPendingPlayback()
     deviceProbeTimer.stop()
     localSocketWaitTimer.stop()

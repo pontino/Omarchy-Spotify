@@ -707,13 +707,12 @@ function automaticLocalPlaybackDevice(selectedId, preferredDevice, localDevice) 
       && candidate.restricted !== true ? candidate : null
 }
 
-// Omitting device_id tells Spotify to keep the user's active device. Address a
-// device directly only for an explicit choice or an inactive fallback target.
+// Freeze the chosen receiver for this playback intent. A missing ID remains
+// valid for hardware players exposed only through current playback.
 function playbackTargetDeviceId(device, explicitSelection) {
   var item = device || null
   if (!item) return ""
-  return explicitSelection === true || item.active !== true
-    ? String(item.id || "") : ""
+  return String(item.id || "")
 }
 
 function isLocalPlaybackDevice(device, configuredName, runtimeName, knownId) {

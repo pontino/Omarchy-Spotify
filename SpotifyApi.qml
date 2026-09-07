@@ -23,6 +23,7 @@ Item {
   property double rateLimitedUntil: 0
   property bool restrictInFlight: false
   property bool pumpingRequests: false
+  property bool cancellingAll: false
   property bool pumpAgain: false
   property var timedJobs: []
   property var diagnostics: []
@@ -66,7 +67,8 @@ Item {
     var elapsed = job.queuedAt !== undefined
       ? Math.max(0, now() - job.queuedAt) : 0
     var entry = {
-      route: String(job.path || "").split("?")[0].replace(/^https:\/\/api.spotify.com\/v1/, ""),
+      route: String(job.path || "").split("?")[0].replace(/^https:\/\/api.spotify.com\/v1/, "")
+        .replace(/\/(users|artists|albums|tracks|playlists|shows|episodes|audiobooks)\/[^/]+/g, "/$1/:id"),
       method: String(job.method || "GET"), status: status,
       durationMs: elapsed,
       queueMs: Math.max(0, (job.startedAt || now()) - job.queuedAt),
@@ -101,6 +103,8 @@ Item {
       var error = waitingForCooldown
         ? Api.rateLimitMessage(String(Math.ceil(cooldownMs / 1000)))
         : "Spotify took too long to respond. Try again."
+      if (String(job.method || "GET") !== "GET" && job.sentAt)
+        error = "Spotify did not confirm this action. Check playback or your collection before retrying."
       if (markJobFinished(job) !== true) continue
       if (handle) {
         handle.xhr = null
@@ -154,6 +158,7 @@ Item {
   }
 
   function pumpRequests() {
+    if (cancellingAll) return
     if (pumpingRequests) {
       pumpAgain = true
       return
@@ -289,9 +294,11 @@ Item {
   }
 
   function cancelAll() {
+    cancellingAll = true
     var jobs = timedJobs.slice()
     for (var i = 0; i < jobs.length; i++) abortRequest(jobs[i].handle)
     cancelSearch()
+    cancellingAll = false
   }
 
   function cancelSearch() {

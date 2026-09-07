@@ -20,6 +20,16 @@ Item {
   property string currentTab: "home"
   property bool openedForLogin: false
 
+  property double searchClock: Date.now()
+  readonly property int searchCooldownSeconds: service
+    ? Math.max(0, Math.ceil((service.searchCooldownUntil - searchClock) / 1000)) : 0
+  Timer {
+    interval: 1000
+    repeat: true
+    running: root.opened && root.showingUniversalSearch && root.service
+      && (root.service.searchLoading || root.searchCooldownSeconds > 0)
+    onTriggered: root.searchClock = Date.now()
+  }
   property string searchText: ""
   property string searchType: "track"
   property string libraryType: "tracks"
@@ -1027,6 +1037,7 @@ Item {
       if (collection && collection.showSort) actions.push("sort")
       if (collection || pageListView()) actions.push("list")
       if (collection && collection.hasMore) actions.push("more")
+      if (collection && collection.filterScanAvailable) actions.push("filter-scan")
     }
     return actions
   }
@@ -1185,6 +1196,8 @@ Item {
       collection.keyboardHintsActive = hintsOn
       collection.keyboardSortSelected = cursorOn("page", "sort")
       collection.keyboardMoreSelected = cursorOn("page", "more")
+      collection.keyboardFilterScanSelected = cursorOn("page", "filter-scan")
+      collection.keyboardFilterScanHint = hintsOn ? navHintFor("page", "filter-scan") : ""
       collection.keyboardSortHint = hintsOn ? navHintFor("page", "sort") : ""
       collection.keyboardMoreHint = hintsOn ? navHintFor("page", "more") : ""
       collection.keyboardListHint = ""
@@ -1211,6 +1224,7 @@ Item {
     ensurePanelCursor()
     var action = panelCursorAction
     if (action === "nav-home") chooseTab("home")
+    else if (action === "nav-search") { chooseTab("search"); focusSearch() }
     else if (action === "nav-discover") chooseTab("discover")
     else if (action === "nav-radio") openLastRadio()
     else if (action === "nav-queue") chooseTab("queue")
@@ -1229,6 +1243,13 @@ Item {
     else if (action === "search") focusSearch()
     else if (action === "scope") toggleSearchScope()
     else if (action === "help") toggleShortcutHelp()
+    else if (action === "filter-scan") {
+      var scanning = pageCollection()
+      if (scanning) {
+        if (scanning.filterScanPaused) scanning.continueFilterScan()
+        else scanning.cancelFilterScan()
+      }
+    }
     else if (action === "retry-search" && service) service.retrySearch(searchType)
     else if (action === "refresh") refreshButton.clicked()
     else if (action === "close") requestClose()
@@ -1839,6 +1860,7 @@ Item {
   }
 
   function open(payloadJson) {
+    searchClock = Date.now()
     var payload = ({})
     try { payload = JSON.parse(String(payloadJson || "{}")) || ({}) } catch (e) {}
     if (shell && shell.bar
@@ -1954,6 +1976,7 @@ Item {
   function primaryNavigationItems() {
     var items = [
       { id: "home", label: "For you", icon: "󰎆" },
+      { id: "search", label: "Search", icon: "󰍉" },
       { id: "discover", label: "Discover", icon: "󰲸" }
     ]
     if (service && service.lastRadioPlaylist) items.push({
@@ -1968,6 +1991,7 @@ Item {
   function extraNarrowNavigationItems() {
     return [
       { id: "home", label: "For you", icon: "󰎆" },
+      { id: "search", label: "Search", icon: "󰍉" },
       { id: "discover", label: "Discover", icon: "󰲸" },
       { id: "queue", label: "Queue", icon: "󰐕" },
       { id: "library", label: "Your Library", icon: "󰋑" },
@@ -5342,7 +5366,8 @@ Item {
             id: searchErrorText
             width: Math.max(40, parent.width - retrySearch.width - parent.spacing)
             anchors.verticalCenter: parent.verticalCenter
-            text: searchRoot.errorText
+            text: root.searchCooldownSeconds > 0 && root.service
+              ? root.service.searchProgressText(root.searchClock) : searchRoot.errorText
             color: Color.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.bodySmall
@@ -5351,7 +5376,10 @@ Item {
 
           Button {
             id: retrySearch
-            hasCursor: root.panelCursorActive && root.panelCursorAction === "retry-search"
+            enabled: root.searchCooldownSeconds === 0
+            hasCursor: root.cursorOn("page", "retry-search")
+            onHovered: function(on) { if (on) root.setPanelCursor("page", "retry-search") }
+            KeyHint { region: "page"; action: "retry-search" }
             text: "Retry"
             iconText: "󰑐"
             foreground: root.foreground
@@ -5434,7 +5462,7 @@ Item {
           restoredContentY: root.scrollFor("search:" + root.searchType)
           stateKey: "search:" + root.searchType
           emptyMessage: root.service && root.service.searchLoading
-            ? "Searching…" : "No " + Api.searchTypeLabel(root.searchType)
+            ? root.service.searchProgressText(root.searchClock) : "No " + Api.searchTypeLabel(root.searchType)
               + " results."
           onActivated: function(item, items, uri) {
             root.activateMedia(item, items, uri)
@@ -5893,6 +5921,15 @@ Item {
                 && !root.service.deviceActivationBusy
               onClicked: root.service.loadDevices(null, undefined, true)
             }
+          }
+
+          Button {
+            text: "Stop playback on this computer"
+            iconText: "󰓛"
+            foreground: root.foreground
+            visible: root.service && root.service.daemon.running
+            enabled: root.service && !root.service.daemon.busy
+            onClicked: root.service.stopEngine()
           }
 
           Button {

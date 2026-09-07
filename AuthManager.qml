@@ -31,7 +31,10 @@ Item {
     ? (customClientId ? customClientId.toLowerCase() : clientId) : ""
   property bool initialized: false
   property bool switchingIdentity: false
-  Component.onCompleted: initialized = true
+  Component.onCompleted: {
+    initialized = true
+    if (!validClientId) changeIdentity()
+  }
   onResolvedClientIdChanged: if (initialized) changeIdentity()
   property int oauthPort: 8989
   property string callbackPath: "/login"
@@ -59,6 +62,7 @@ Item {
   property bool callbackHandled: false
   property bool exchangingCode: false
   property var tokenRequest: null
+  property var xhrFactory: function() { return new XMLHttpRequest() }
   property int tokenRequestSerial: 0
   property bool logoutPendingClear: false
 
@@ -178,7 +182,7 @@ Item {
   function postTokenRequest(body, previousRefreshToken, callback) {
     var serial = ++tokenRequestSerial
     var identity = resolvedClientId
-    var request = new XMLHttpRequest()
+    var request = xhrFactory()
     tokenRequest = request
     request.onreadystatechange = function() {
       if (request.readyState !== XMLHttpRequest.DONE) return

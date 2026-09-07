@@ -29,6 +29,7 @@ BarWidget {
   readonly property bool iconOnly: !spotify || vertical || !spotify.hasMedia
     || barText === ""
   property bool popupOpen: false
+  property bool contextMenuVisible: false
   property bool lyricsInstallPromptVisible: false
   property bool miniShortcutHelpVisible: false
   property bool popoutSwitchClosing: false
@@ -83,6 +84,7 @@ BarWidget {
     { keys: "Esc", action: "Close" }
   ]
   readonly property var miniKeyboardActions: {
+    if (contextMenuVisible) return spotify && spotify.daemon.running ? ["stop", "open"] : ["open"]
     if (lyricsInstallPromptVisible) return ["prompt-cancel", "prompt-confirm"]
     if (miniShortcutHelpVisible) return ["help-close"]
     if (spotify && !spotify.accountConnected) {
@@ -114,6 +116,7 @@ BarWidget {
   }
   function close() {
     miniShortcutHelpVisible = false
+    contextMenuVisible = false
     clearShortcutMode()
     popupOpen = false
   }
@@ -261,34 +264,6 @@ BarWidget {
     else bar.shell.toggle("quickshell.spotify", encoded)
   }
 
-  IpcHandler {
-    target: root.moduleName + ".player"
-
-    function configuredPlayer(): string {
-      return root.shortcutPlayer()
-    }
-
-    function togglePlayer(): string {
-      return root.toggleConfiguredPlayerShortcut()
-    }
-
-    function toggleMiniPlayer(): string {
-      return root.toggleMiniPlayerShortcut()
-    }
-
-    function toggleFullPlayer(): string {
-      return root.toggleFullPlayerShortcut()
-    }
-
-    function volumeUp(): string {
-      return root.adjustVolume(0.05) ? "ok" : "unavailable"
-    }
-
-    function volumeDown(): string {
-      return root.adjustVolume(-0.05) ? "ok" : "unavailable"
-    }
-  }
-
   function openCurrentArtist() {
     if (!spotify || !bar || !bar.shell
         || !spotify.currentArtistContextAvailable) return
@@ -413,6 +388,10 @@ BarWidget {
     } else if (action === "repeat") {
       if (spotify) spotify.cycleRepeat()
     } else if (action === "lyrics") openLyrics()
+    else if (action === "stop") {
+      if (spotify) spotify.stopEngine()
+      close()
+    }
     else if (action === "volume") toggleMute()
     else if (action === "setup") {
       if (spotify && !spotify.loginBusy) spotify.login()
@@ -525,7 +504,10 @@ BarWidget {
   implicitHeight: button.implicitHeight
 
   onSettingsChanged: syncSettings()
-  onSpotifyChanged: syncSettings()
+  onSpotifyChanged: {
+    syncSettings()
+    if (spotify) spotify.registerPlayerSurface(root)
+  }
   onMiniPlayerEnabledChanged: if (!miniPlayerEnabled) close()
   onShortcutHintsEnabledChanged: if (!shortcutHintsEnabled) clearShortcutMode()
   onMiniKeyboardActionsChanged: ensureMiniCursor()
@@ -554,8 +536,14 @@ BarWidget {
       lyricsInstallPromptVisible = false
     }
   }
-  Component.onCompleted: syncSettings()
-  Component.onDestruction: if (spotify) spotify.setUiVisible(surfaceKey, false)
+  Component.onCompleted: {
+    syncSettings()
+    if (spotify) spotify.registerPlayerSurface(root)
+  }
+  Component.onDestruction: if (spotify) {
+    spotify.setUiVisible(surfaceKey, false)
+    spotify.unregisterPlayerSurface(root)
+  }
 
   BarIconButton {
     id: button
@@ -565,7 +553,7 @@ BarWidget {
     hasVisualContent: true
     slotSize: Style.bar.iconSlot
     opticalSize: Style.bar.iconCanvas
-    fontSize: root.iconOnly ? Style.bar.iconFont : Style.font.body
+    fontSize: root.iconOnly ? Math.round(Style.bar.iconFont * 0.9) : Style.font.body
     active: root.spotify && root.spotify.playing
     // Follow the bar's contrast-aware color when transparency changes.
     // Keep root.foreground theme-based for the popup/player surfaces.
@@ -690,9 +678,13 @@ BarWidget {
     }
 
     onPressed: function(mouseButton) {
-      if (mouseButton === Qt.MiddleButton) {
+      if (mouseButton === Qt.RightButton) {
+        root.contextMenuVisible = true
+        root.popupOpen = true
+      } else if (mouseButton === Qt.MiddleButton) {
         if (root.spotify) root.spotify.togglePlayback()
       } else {
+        root.contextMenuVisible = false
         root.toggle()
       }
     }
@@ -711,7 +703,7 @@ BarWidget {
     open: root.popupOpen
     focusTarget: miniKeyCatcher
     contentWidth: fittedContentWidth(Style.space(340))
-    contentHeight: fittedContentHeight(root.miniShortcutHelpVisible
+    contentHeight: fittedContentHeight(root.contextMenuVisible ? barContextMenu.implicitHeight : root.miniShortcutHelpVisible
       ? miniShortcutHelp.implicitHeight : contentColumn.implicitHeight)
 
     Item {
@@ -751,9 +743,31 @@ BarWidget {
       }
 
       Column {
+        id: barContextMenu
+        width: parent.width
+        visible: root.contextMenuVisible
+        spacing: Style.space(6)
+        Button {
+          text: "Stop playback on this computer"
+          iconText: "󰓛"
+          foreground: root.foreground
+          visible: root.spotify && root.spotify.daemon.running
+          enabled: root.spotify && !root.spotify.daemon.busy
+          hasCursor: root.miniCursorActive && root.miniCursor === "stop"
+          onClicked: root.activateMiniAction("stop")
+        }
+        Button {
+          text: "Open full player"
+          foreground: root.foreground
+          hasCursor: root.miniCursorActive && root.miniCursor === "open"
+          onClicked: root.openFullPanel()
+        }
+      }
+
+      Column {
         id: contentColumn
         anchors.fill: parent
-        visible: !root.miniShortcutHelpVisible
+        visible: !root.miniShortcutHelpVisible && !root.contextMenuVisible
         spacing: Style.space(10)
 
       Row {

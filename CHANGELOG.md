@@ -1,6 +1,20 @@
 # Changelog
 
-## Unreleased
+## 1.0.4 (unreleased)
+
+- Cancel obsolete search pages, reuse pending searches and cached categories,
+  and show queued, authorization, fetching, and cooldown progress.
+- Bound stalled API and token requests. Keep a private-query-free diagnostic
+  history and distinguish exhausted developer quota from temporary throttling.
+- Isolate personal OAuth identities and reject invalid client IDs visibly.
+- Preserve manual pagination beyond 200 items. Collection filters scan five
+  pages at a time with partial-result status and Continue/Cancel controls.
+- Browse artist releases by artist ID and keep compact-row Save discoverable.
+- Route global player shortcuts through one shared owner to the focused monitor.
+- Limit backend restart loops, report safe startup failures, and provide an
+  explicit local Stop action that is respected when reopening the panel.
+- Add pinned validation CI and real Quickshell authorization and app smoke tests.
+
 - Add a "Show artwork" setting (On by default). When off, album and playlist
   covers are never downloaded and the app becomes text-only: artwork tiles are
   removed entirely and their space is given to titles and controls across the

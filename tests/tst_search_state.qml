@@ -20,7 +20,7 @@ TestCase {
       return handle
     }
   }
-  Component { id: controller; Plugin.SearchController { spotifyApi: transport } }
+  Component { id: controller; Plugin.SearchController { api: transport } }
   function init() { calls = [] }
   function result(type, items, next) {
     var groups = Api.searchGroups({}, 128)

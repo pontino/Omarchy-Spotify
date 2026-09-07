@@ -36,8 +36,8 @@ git -C "$release_source" config user.name "Omarchy Spotify tests"
 git -C "$release_source" config user.email "tests@example.invalid"
 git -C "$release_source" add .
 git -C "$release_source" commit -qm "Release source"
-git -C "$release_source" tag -a v1.0.3 -m "Release v1.0.3"
-release_commit=$(git -C "$release_source" rev-parse 'refs/tags/v1.0.3^{commit}')
+git -C "$release_source" tag -a v1.0.4 -m "Release v1.0.4"
+release_commit=$(git -C "$release_source" rev-parse 'refs/tags/v1.0.4^{commit}')
 printf '%s\n' 'UI-only change after the release' >"$release_source/Panel.qml"
 git -C "$release_source" add Panel.qml
 git -C "$release_source" commit -qm "Change only the UI"
@@ -492,7 +492,6 @@ grep -q 'readonly property string redirectUri: "http://127.0.0.1:"' \
 grep -q 'resolvedClientId' "$source_root/AuthManager.qml"
 grep -q 'customClientId' "$source_root/AuthManager.qml"
 grep -qF '[0-9a-f]{32}' "$source_root/AuthManager.qml"
-grep -qF '[0-9a-f]{32}' "$source_root/Service.qml"
 grep -q '"clientId"' "$source_root/manifest.json"
 grep -q 'customClientId: settings.clientId' "$source_root/Service.qml"
 ! grep -q '"oauthPort"' "$source_root/manifest.json"
@@ -509,7 +508,7 @@ if grep -E '^[[:space:]]*uses:' \
   echo "release-backend.yml contains a mutable action reference" >&2
   exit 1
 fi
-jq -e '.version == "1.0.3"
+jq -e '.version == "1.0.4"
   and .barWidget.defaultSection == "left"
   and .barWidget.defaults.showMiniPlayer == "On"
   and (.barWidget.schema[] | select(.key == "showMiniPlayer").defaultValue) == "On"

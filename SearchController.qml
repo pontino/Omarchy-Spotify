@@ -3,7 +3,7 @@ import "Api.js" as Api
 
 Item {
   id: root
-  required property var spotifyApi
+  required property var api
   property int dataSerial: 0
   signal rememberSearch(string term)
   signal checkSavedItems(var items)
@@ -21,6 +21,17 @@ Item {
   property string retryMode: "initial"
   onDataSerialChanged: clearSearch()
 
+  function progressText(timestamp) {
+    var remaining = Math.max(0, Number(api.rateLimitedUntil || 0) - timestamp)
+    if (remaining > 0)
+      return "Waiting for Spotify. Try again in " + Math.ceil(remaining / 1000) + " seconds."
+    var handle = pageRequest || api.searchRequest
+    var job = handle ? handle.job : null
+    if (job && !job.startedAt) return "Search queued…"
+    if (job && !job.sentAt) return "Refreshing Spotify authorization…"
+    return "Fetching results from Spotify…"
+  }
+
   function search(term, type, force) {
     var normalized = String(term || "").trim()
     var value = Api.normalizedSearchType(type)
@@ -34,7 +45,7 @@ Item {
       return
     }
     if (searchResultQuery !== normalized) {
-      spotifyApi.cancelSearch()
+      api.cancelSearch()
       searchGeneration++
       searchResultQuery = normalized
       searchGroups = Api.searchGroups({}, 128)
@@ -49,7 +60,7 @@ Item {
       searchLoadedTypes = refreshedTypes
     }
     if (searchLoadedTypes[value] === true) {
-      spotifyApi.cancelSearch()
+      api.cancelSearch()
       searchGeneration++
       searchPendingType = ""
       searchLoading = false
@@ -62,7 +73,7 @@ Item {
     searchPendingType = value
     var expected = dataSerial
     var expectedSearch = ++searchGeneration
-    spotifyApi.search(normalized, value, function(groups, error) {
+    api.search(normalized, value, function(groups, error) {
       if (expected !== root.dataSerial
           || expectedSearch !== root.searchGeneration) return
       if (root.searchQuery !== normalized) return
@@ -104,7 +115,7 @@ Item {
     searchError = ""
     searchPendingType = value
     retryMode = "page"
-    pageRequest = spotifyApi.request("GET", path, null, null, function(status, payload, error) {
+    pageRequest = api.request("GET", path, null, null, function(status, payload, error) {
       if (expected !== root.dataSerial
           || expectedSearch !== root.searchGeneration
           || expectedQuery !== root.searchResultQuery) return
@@ -135,8 +146,8 @@ Item {
 
   function clearSearch() {
     searchGeneration++
-    spotifyApi.cancelSearch()
-    spotifyApi.abortRequest(pageRequest)
+    api.cancelSearch()
+    api.abortRequest(pageRequest)
     pageRequest = null
     searchLoading = false
     searchQuery = ""
@@ -150,8 +161,8 @@ Item {
 
   function cancelSearch(clearResults) {
     searchGeneration++
-    spotifyApi.cancelSearch()
-    spotifyApi.abortRequest(pageRequest)
+    api.cancelSearch()
+    api.abortRequest(pageRequest)
     pageRequest = null
     searchLoading = false
     searchPendingType = ""

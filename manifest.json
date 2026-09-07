@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "quickshell.spotify",
   "name": "Omarchy Spotify",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "QuickshellSpotify",
   "license": "MIT",
   "description": "Spotify in Quickshell with all the features you need\u2014using about 60 MB of memory versus roughly 950 MB for the official client.",

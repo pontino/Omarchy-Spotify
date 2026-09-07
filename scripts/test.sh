@@ -25,7 +25,7 @@ qml_test_runner=/usr/lib/qt6/bin/qmltestrunner
 
 omarchy plugin validate .
 qmllint -I /usr/share/omarchy/shell Api.js OAuth.js AuthManager.qml \
-  SpotifyApi.qml SearchController.qml SpotifyConnectManager.qml DaemonManager.qml BackendClient.qml Service.qml \
+  SpotifyApi.qml SearchController.qml FilterScanController.qml SpotifyConnectManager.qml DaemonManager.qml BackendClient.qml Service.qml \
   BarWidget.qml PlaybackSlider.qml ArtistLinks.qml MediaByline.qml MediaRow.qml MediaCollection.qml \
   ArtistSearchSection.qml LyricsInstallPrompt.qml RetryImage.qml ShortcutHint.qml \
   TransportButton.qml Panel.qml
@@ -37,6 +37,7 @@ QT_QPA_PLATFORM=offscreen "$qml_test_runner" \
 
 PYTHONDONTWRITEBYTECODE=1 python3 "$source_root/tests/test_connect_helper.py"
 "$source_root/tests/test-scripts.sh"
+"$source_root/scripts/test-quickshell.sh"
 
 if rg -n 'QtWebEngine|WebEngineView|WebView|playerctl|node_modules' \
   --glob '*.qml' --glob '*.js' --glob '*.sh' --glob '*.service' \

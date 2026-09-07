@@ -140,7 +140,7 @@ if (( backend_ready )); then
   fi
   install -m 644 -- "$source_root/systemd/omarchy-spotify.service" "$backend_unit_file"
 fi
-if command -v spotifyd >/dev/null 2>&1; then
+if command -v spotifyd >/dev/null 2>&1 || [[ -f $fallback_unit_file ]]; then
   install -m 644 -- "$source_root/systemd/omarchy-spotifyd.service" "$fallback_unit_file"
 fi
 systemctl --user daemon-reload

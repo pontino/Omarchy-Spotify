@@ -154,6 +154,7 @@ Item {
 
   function startSecretLookup() {
     lookupHandled = false
+    keyringTimeout.restart()
     secretLookup.command = [
       "secret-tool", "lookup",
       "service", "quickshell-spotify",
@@ -167,6 +168,7 @@ Item {
   function handleSecretLookup(raw) {
     if (lookupHandled || switchingIdentity || secretLookup.identity !== resolvedClientId) return
     lookupHandled = true
+    keyringTimeout.stop()
     var token = String(raw || "").trim()
     var purpose = lookupPurpose
     lookupPurpose = ""
@@ -374,6 +376,7 @@ Item {
   }
 
   function cancelLogin() {
+    keyringTimeout.stop()
     tokenTimeout.stop()
     authTimeout.stop()
     authOpenDelay.stop()
@@ -388,6 +391,19 @@ Item {
     exchangingCode = false
     callbackHandled = false
     clearPkce()
+  }
+
+  Timer {
+    id: keyringTimeout
+    interval: 15000
+    onTriggered: {
+      root.lookupHandled = true
+      secretLookup.running = false
+      root.lastError = "The secure keyring did not respond. Unlock it, then try again."
+      root.sessionChecked = true
+      root.finishWaiters("", root.lastError)
+      root.sessionUnavailable(root.lastError)
+    }
   }
 
   Timer {

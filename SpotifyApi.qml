@@ -25,6 +25,8 @@ Item {
   property bool pumpingRequests: false
   property bool pumpAgain: false
   property var timedJobs: []
+  property var diagnostics: []
+  property int activeTimeoutMs: 15000
   property var xhrFactory: function() { return new XMLHttpRequest() }
   property var now: function() { return Date.now() }
 
@@ -63,10 +65,17 @@ Item {
   function deliverJob(job, status, payload, error, xhr) {
     var elapsed = job.queuedAt !== undefined
       ? Math.max(0, now() - job.queuedAt) : 0
-    if (error || elapsed >= 2000)
-      console.warn("Spotify API " + String(job.method || "GET") + " "
-        + Api.redact(String(job.path || "")) + " finished in " + elapsed + " ms"
-        + (error ? ": " + Api.redact(error) : ""))
+    var entry = {
+      route: String(job.path || "").split("?")[0].replace(/^https:\/\/api.spotify.com\/v1/, ""),
+      method: String(job.method || "GET"), status: status,
+      durationMs: elapsed,
+      queueMs: Math.max(0, (job.startedAt || now()) - job.queuedAt),
+      tokenMs: job.sentAt ? Math.max(0, job.sentAt - job.startedAt) : 0,
+      httpMs: job.sentAt ? Math.max(0, now() - job.sentAt) : 0,
+      retries: job.rateLimitRetries + (job.retried ? 1 : 0),
+      outcome: error ? (status ? "http-error" : "transport-error") : "success"
+    }
+    diagnostics = diagnostics.concat([entry]).slice(-100)
     releaseRequestSlot(job.handle)
     callbackIfCurrent(job, status, payload, error, xhr)
   }
@@ -82,8 +91,9 @@ Item {
     var jobs = timedJobs.slice()
     for (var i = 0; i < jobs.length; i++) {
       var job = jobs[i]
-      if (!job || job.finished === true || !job.deadlineAt
-          || current < job.deadlineAt) continue
+      if (!job || job.finished === true) continue
+      var deadline = job.deadlineAt || job.activeDeadlineAt
+      if (!deadline || current < deadline) continue
       var handle = job.handle
       var xhr = handle ? handle.xhr : null
       var cooldownMs = Api.apiCooldownMs(current, rateLimitedUntil)
@@ -117,7 +127,14 @@ Item {
     releaseRequestSlot(handle)
   }
 
+  function quotaExceeded(payload) {
+    return !!payload && !!payload.error
+      && payload.error.reason === "QUOTA_EXCEEDED"
+  }
+
   function requestError(status, payload, xhr, fallback) {
+    if (status === 429 && quotaExceeded(payload))
+      return "This Spotify app has exhausted its developer quota. Check the app configuration or use another authorized client."
     if (status === 429)
       return Api.rateLimitMessage(Api.responseRetryAfter(xhr))
     return Api.responseError(status, payload, fallback)
@@ -164,6 +181,8 @@ Item {
 
   function startJob(job) {
     var handle = job.handle
+    job.startedAt = now()
+    job.activeDeadlineAt = job.startedAt + activeTimeoutMs
     var url = Api.safeApiUrl(job.path)
     if (!url) {
       finishJob(job, 0, null, "Something went wrong while contacting Spotify", null)
@@ -180,6 +199,8 @@ Item {
         finishJob(job, 0, null, tokenError || "Not logged in", null)
         return
       }
+      job.sentAt = now()
+      job.activeDeadlineAt = job.sentAt + activeTimeoutMs
       var xhr = null
       try {
         xhr = xhrFactory()
@@ -191,17 +212,19 @@ Item {
           var payload = Api.parseJson(xhr.responseText, null)
           if (xhr.status === 401 && job.retried !== true) {
             auth.invalidateAccessToken()
+            job.activeDeadlineAt = 0
             job.retried = true
             requestQueue = Api.enqueueApiJob(requestQueue, job)
             releaseRequestSlot(handle)
             return
           }
-          if (xhr.status === 429) {
+          if (xhr.status === 429 && !quotaExceeded(payload)) {
             restrictInFlight = true
             rateLimitedUntil = Api.nextRateLimitedUntil(now(),
               Api.responseRetryAfter(xhr), rateLimitedUntil, job.rateLimitRetries)
             if (job.retryRateLimit !== false
                 && Api.shouldRetryRateLimit(job.rateLimitRetries)) {
+              job.activeDeadlineAt = 0
               job.rateLimitRetries += 1
               requestQueue = Api.enqueueApiJob(requestQueue, job)
               releaseRequestSlot(handle)
@@ -261,7 +284,7 @@ Item {
       handle: handle
     }
     handle.job = job
-    if (timeoutMs > 0) timedJobs = timedJobs.concat([job])
+    timedJobs = timedJobs.concat([job])
     return enqueueJob(job)
   }
 

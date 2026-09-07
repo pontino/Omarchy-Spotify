@@ -997,6 +997,7 @@ Item {
     if (currentTab === "playlists" && service && service.selectedPlaylist)
       actions.push("playlist-play", "playlist-more")
     if (showingUniversalSearch) {
+      if (service && service.searchError) actions.push("retry-search")
       for (var s = 0; s < Api.SEARCH_TYPES.length; s++)
         actions.push("search-" + Api.SEARCH_TYPES[s])
     }
@@ -1221,6 +1222,7 @@ Item {
     else if (action === "search") focusSearch()
     else if (action === "scope") toggleSearchScope()
     else if (action === "help") toggleShortcutHelp()
+    else if (action === "retry-search" && service) service.retrySearch(searchType)
     else if (action === "refresh") refreshButton.clicked()
     else if (action === "close") requestClose()
     else if (action === "like" && service) service.toggleCurrentTrackSaved()
@@ -5333,6 +5335,7 @@ Item {
 
           Button {
             id: retrySearch
+            hasCursor: root.panelCursorActive && root.panelCursorAction === "retry-search"
             text: "Retry"
             iconText: "󰑐"
             foreground: root.foreground

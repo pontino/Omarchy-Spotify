@@ -454,7 +454,7 @@ class ConnectHelperTests(unittest.TestCase):
             helper.subprocess,
             "run",
             side_effect=subprocess.TimeoutExpired(
-                cmd=["avahi-browse"], timeout=8, output=dump
+                cmd=["avahi-browse"], timeout=8, output=dump.encode("utf-8")
             ),
         ):
             self.assertEqual(helper.browse_spotify_connect(), dump)

@@ -304,7 +304,9 @@ def browse_spotify_connect() -> str:
         )
         return result.stdout or ""
     except subprocess.TimeoutExpired as error:
-        stdout = error.stdout if isinstance(error.stdout, str) else ""
+        stdout = error.stdout or ""
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode("utf-8", errors="replace")
         if stdout.strip():
             return stdout
         raise ConnectError("Spotify Connect discovery is unavailable") from error

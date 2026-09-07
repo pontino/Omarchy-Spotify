@@ -174,7 +174,7 @@ TestCase {
     var api = createTemporaryObject(apiComponent, testCase)
     api.rateLimitedUntil = 15000
     var errors = []
-    api.search("waiting", function(groups, error) { errors.push(error) })
+    api.search("waiting", "track", function(groups, error) { errors.push(error) })
     compare(requests.length, 0)
     clock = 9000
     api.expireTimedOutRequests(clock)
@@ -190,7 +190,7 @@ TestCase {
   function test_inFlightSearchStillReportsTimeoutDuringAnotherCooldown() {
     var api = createTemporaryObject(apiComponent, testCase)
     var error = ""
-    api.search("sent", function(groups, reason) { error = reason })
+    api.search("sent", "track", function(groups, reason) { error = reason })
     api.rateLimitedUntil = 15000
     clock = 9000
     api.expireTimedOutRequests(clock)
@@ -202,7 +202,7 @@ TestCase {
     var api = createTemporaryObject(apiComponent, testCase)
     api.rateLimitedUntil = 4000
     var errors = []
-    api.search("waiting", function(groups, error) { errors.push(error) })
+    api.search("waiting", "track", function(groups, error) { errors.push(error) })
     clock = 4000
     api.pumpRequests()
     compare(requests.length, 1)
@@ -217,9 +217,9 @@ TestCase {
     api.rateLimitedUntil = 15000
     var oldCalls = 0
     var newErrors = []
-    api.search("old", function() { oldCalls++ })
+    api.search("old", "track", function() { oldCalls++ })
     clock = 2000
-    api.search("new", function(groups, error) { newErrors.push(error) })
+    api.search("new", "track", function(groups, error) { newErrors.push(error) })
     clock = 9000
     api.expireTimedOutRequests(clock)
     compare(oldCalls, 0)
@@ -234,7 +234,7 @@ TestCase {
     var api = createTemporaryObject(apiComponent, testCase)
     api.rateLimitedUntil = 9000
     var error = ""
-    api.search("waiting", function(groups, reason) { error = reason })
+    api.search("waiting", "track", function(groups, reason) { error = reason })
     clock = 9000
     api.expireTimedOutRequests(clock)
     compare(error, "Spotify took too long to respond. Try again.")
@@ -334,7 +334,7 @@ TestCase {
     var api = createTemporaryObject(apiComponent, testCase)
     verify(api)
     var callbacks = 0
-    api.search("busy", function(groups, error) {
+    api.search("busy", "track", function(groups, error) {
       callbacks++
       verify(error.indexOf("120 seconds") >= 0)
     })
@@ -398,7 +398,7 @@ TestCase {
     complete(requests[0], 200)
     compare(requests.length, 2)
     compare(callbacks, 0)
-    compare(api.timedJobs.length, 0)
+    compare(api.timedJobs.length, 1)
   }
 
   function test_timeoutUsesInclusiveDeadlineBoundary() {
@@ -469,5 +469,50 @@ TestCase {
       compare(api.requestsInFlight, 0)
       api.destroy()
     }
+  }
+
+  function test_backgroundWatchdogReleasesSlots() {
+    var api = createTemporaryObject(apiComponent, testCase)
+    var calls = 0
+    api.request("GET", "/me", null, null, function() { calls++ })
+    api.request("GET", "/me/player", null, null, function() { calls++ })
+    clock = 16000
+    api.expireTimedOutRequests(clock)
+    compare(calls, 2)
+    compare(api.requestsInFlight, 0)
+    verify(requests[0].aborted)
+    complete(requests[0], 200)
+    compare(calls, 2)
+  }
+
+  function test_backgroundCooldownDoesNotConsumeActiveTimeout() {
+    var api = createTemporaryObject(apiComponent, testCase)
+    api.rateLimitedUntil = 121000
+    var calls = 0
+    api.request("GET", "/me", null, null, function() { calls++ })
+    clock = 120000
+    api.expireTimedOutRequests(clock)
+    compare(calls, 0)
+    compare(requests.length, 0)
+    clock = 121000
+    api.pumpRequests()
+    compare(requests.length, 1)
+    api.expireTimedOutRequests(clock)
+    compare(calls, 0)
+    complete(requests[0], 200)
+    compare(calls, 1)
+  }
+
+  function test_quotaExceededDoesNotRetryOrInventCooldown() {
+    var api = createTemporaryObject(apiComponent, testCase)
+    var error = ""
+    api.request("GET", "/search?q=private-query", null, null,
+      function(status, payload, reason) { error = reason })
+    complete(requests[0], 429, '{"error":{"reason":"QUOTA_EXCEEDED"}}')
+    verify(error.indexOf("developer quota") >= 0)
+    compare(api.rateLimitedUntil, 0)
+    compare(api.requestQueue.length, 0)
+    compare(api.diagnostics[0].route, "/search")
+    verify(JSON.stringify(api.diagnostics).indexOf("private-query") < 0)
   }
 }

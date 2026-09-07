@@ -13,8 +13,8 @@ done
 
 if command -v cargo >/dev/null 2>&1; then
   cargo fmt --manifest-path backend/Cargo.toml --all -- --check
-  cargo test --manifest-path backend/Cargo.toml --quiet
-  cargo clippy --manifest-path backend/Cargo.toml --all-targets -- -D warnings
+  cargo test --locked --manifest-path backend/Cargo.toml --quiet
+  cargo clippy --locked --manifest-path backend/Cargo.toml --all-targets -- -D warnings
 fi
 
 qml_test_runner=/usr/lib/qt6/bin/qmltestrunner
@@ -25,7 +25,7 @@ qml_test_runner=/usr/lib/qt6/bin/qmltestrunner
 
 omarchy plugin validate .
 qmllint -I /usr/share/omarchy/shell Api.js OAuth.js AuthManager.qml \
-  SpotifyApi.qml SpotifyConnectManager.qml DaemonManager.qml BackendClient.qml Service.qml \
+  SpotifyApi.qml SearchController.qml SpotifyConnectManager.qml DaemonManager.qml BackendClient.qml Service.qml \
   BarWidget.qml PlaybackSlider.qml ArtistLinks.qml MediaByline.qml MediaRow.qml MediaCollection.qml \
   ArtistSearchSection.qml LyricsInstallPrompt.qml RetryImage.qml ShortcutHint.qml \
   TransportButton.qml Panel.qml

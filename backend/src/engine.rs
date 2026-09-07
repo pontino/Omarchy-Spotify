@@ -202,7 +202,7 @@ async fn supervise_sessions(
 
         let now = Instant::now();
         if !record_reconnect(&mut reconnects, now) {
-            bail!("librespot session ended too often; reconnect limit reached");
+            return Err(crate::failure::Failure::ReconnectExhausted.into());
         }
         log::warn!("librespot session ended; reconnecting");
 
@@ -298,9 +298,7 @@ fn load_credentials(credentials_root: &Path, legacy_cache_root: &Path) -> Result
         }
     }
 
-    Err(anyhow!(
-        "no playback credentials; authenticate from the plugin settings first"
-    ))
+    Err(crate::failure::Failure::MissingCredentials.into())
 }
 
 async fn run_commands(

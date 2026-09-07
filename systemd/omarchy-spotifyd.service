@@ -5,6 +5,9 @@ After=graphical-session.target sound.target
 Wants=sound.target
 Conflicts=omarchy-spotify.service
 
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
 [Service]
 Type=simple
 # librespot's PulseAudio backend accepts the server default buffer unless the

@@ -7,6 +7,7 @@ Image {
   // artwork with a unique query value so a connection failure does not leave
   // a permanent placeholder after the network returns.
   property string requestedSource: ""
+  property bool active: !parent || parent.visible
   property int retryAttempt: 0
   property int retryLimit: 8
   property int retryBaseDelayMs: 750
@@ -31,7 +32,8 @@ Image {
       + "omarchy_art_retry=" + encodeURIComponent(token) + fragment
   }
 
-  source: retryUrl(requestedSource, retryToken)
+  source: active ? retryUrl(requestedSource, retryToken) : ""
+  onActiveChanged: if (!active) retryTimer.stop()
 
   onRequestedSourceChanged: {
     retryTimer.stop()
@@ -43,7 +45,7 @@ Image {
     if (status === Image.Ready) {
       retryTimer.stop()
       retryAttempt = 0
-    } else if (status === Image.Error && canRetry(requestedSource)
+    } else if (status === Image.Error && active && canRetry(requestedSource)
         && retryAttempt < retryLimit) {
       retryAttempt++
       retryTimer.restart()
@@ -54,6 +56,7 @@ Image {
     id: retryTimer
     interval: root.retryDelayMs
     repeat: false
-    onTriggered: root.retryToken = String(Date.now()) + "-" + root.retryAttempt
+    onTriggered: if (root.active)
+      root.retryToken = String(Date.now()) + "-" + root.retryAttempt
   }
 }

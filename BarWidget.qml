@@ -927,14 +927,14 @@ BarWidget {
                 duration: 7000
                 loops: Animation.Infinite
                 running: root.vinylRecordEnabled && root.popupOpen
-                  && root.spotify && root.spotify.playing
+                  && root.spotify && root.spotify.artworkEnabled && root.spotify.playing
               }
 
-              Image {
+              RetryImage {
                 id: popupRecordArtwork
                 anchors.fill: parent
-                source: root.vinylRecordEnabled && root.popupOpen && root.spotify
-                  ? root.spotify.artUrl : ""
+                requestedSource: root.vinylRecordEnabled && root.popupOpen && root.spotify && root.spotify.artworkEnabled
+                  ? Api.idleMediaText(root.spotify.artUrl, root.spotify.lastPlayedItem, "imageUrl", "") : ""
                 sourceSize.width: 156
                 sourceSize.height: 156
                 fillMode: Image.PreserveAspectCrop

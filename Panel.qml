@@ -57,6 +57,7 @@ Item {
   property int restoredDetailItemCount: 0
   readonly property bool artworkVisible: !service || service.artworkEnabled
 
+  property string draftClientId: ""
   property string draftDeviceName: "Omarchy Spotify"
   property string draftIdleMinutes: "15"
   property bool draftShowMiniPlayer: true
@@ -194,6 +195,7 @@ Item {
 
   function syncDraftSettings() {
     if (!service) return
+    draftClientId = String(service.settings.clientId || "")
     draftDeviceName = service.deviceName
     draftIdleMinutes = String(service.idleShutdownMinutes)
     draftShowMiniPlayer = service.showMiniPlayer
@@ -6553,6 +6555,43 @@ Item {
                   onTextEdited: root.draftIdleMinutes = text
                   onEditingFinished: root.persistDraftSettings()
                 }
+              }
+            }
+
+            Column {
+              width: parent.width
+              spacing: Style.space(6)
+              Text {
+                text: "PERSONAL SPOTIFY APP · OPTIONAL"
+                color: root.muted
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                font.bold: true
+              }
+              TextField {
+                width: parent.width
+                foreground: root.foreground
+                placeholderText: "Leave empty to use the shared app"
+                text: root.draftClientId
+                onTextEdited: root.draftClientId = text
+              }
+              Text {
+                width: parent.width
+                text: root.draftClientId.trim() && !/^[0-9a-f]{32}$/i.test(root.draftClientId.trim())
+                  ? "Enter a client ID with exactly 32 hexadecimal characters."
+                  : "Uses your developer app's quota. Changing this clears the current session and requires authorization for the selected app."
+                color: root.muted
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                wrapMode: Text.WordWrap
+              }
+              Button {
+                text: "Apply app"
+                foreground: root.foreground
+                enabled: root.service && (root.draftClientId.trim() === ""
+                  || /^[0-9a-f]{32}$/i.test(root.draftClientId.trim()))
+                  && root.draftClientId.trim().toLowerCase() !== String(root.service.settings.clientId || "")
+                onClicked: root.service.persistSettings({ clientId: root.draftClientId.trim() })
               }
             }
 

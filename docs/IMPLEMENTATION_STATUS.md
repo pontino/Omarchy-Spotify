@@ -84,3 +84,28 @@ physical monitor routing, sleep/wake and the complete benchmark matrix still
 need live acceptance coverage. Automated fixtures verify race behavior without
 using real credentials or changing the user's queue. A brief whole-shell sample
 cannot establish Spotify latency or a plugin-only memory improvement.
+
+## Local installation
+
+The installed checkout was fast-forwarded to the tested implementation and the
+plugin was reloaded. The optimized 1.0.4 backend is installed, its source identity
+check passes, and systemd reports it active with zero restarts. Both units report
+StartLimitBurst=5 and StartLimitIntervalSec=300. The built-in unit also excludes
+exit codes 75, 77 and 78 from automatic restart. Shared IPC responds, and the live
+shell log contains no new QML binding/type/load errors from the update.
+
+Rollback references are the local `backup/pre-reliability-20260907` branch and
+`~/.local/state/omarchy-spotify/implementation-backup-20260907/`, which contains
+the previous executable/metadata and service units. Credentials were retained.
+No branches, tags, issues, PR comments, or release artifacts were published.
+
+Two five-second **observational whole-shell** samples, with no controlled live
+search/playback matrix, were:
+
+| Sample | CPU | Scheduler switches/s | Shell RSS | Backend RSS |
+| --- | ---: | ---: | ---: | ---: |
+| Before | 0.999% | 28.976 | 849528 KiB | 25660 KiB |
+| After | 0.200% | 2.998 | 779124 KiB | 23280 KiB |
+
+Hot reload, unrelated plugins, and the backend restart confound attribution.
+These numbers are a sanity check, not a measured plugin-specific improvement.

@@ -19,7 +19,7 @@ jobs:
         run: |
           echo 'Server = https://archive.archlinux.org/repos/2026/09/07/$repo/os/$arch' > /etc/pacman.d/mirrorlist
           pacman -Syyuu --noconfirm
-          pacman -S --needed --noconfirm git jq ripgrep python qt6-declarative quickshell libpulse openssl pkgconf rustup dbus
+          pacman -S --needed --noconfirm git jq ripgrep python qt6-declarative quickshell libpulse openssl pkgconf rustup dbus socat xdg-utils avahi libgcrypt
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false

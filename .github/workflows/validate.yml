@@ -30,6 +30,7 @@ jobs:
           rustup toolchain install 1.97.1 --profile minimal --component rustfmt --component clippy
           rustup default 1.97.1
           echo '/usr/share/omarchy/bin' >> "$GITHUB_PATH"
+          echo '/usr/lib/qt6/bin' >> "$GITHUB_PATH"
       - name: Validate the exact checkout
         run: |
           mkdir -p /tmp/spotify-runtime

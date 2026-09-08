@@ -109,3 +109,12 @@ search/playback matrix, were:
 
 Hot reload, unrelated plugins, and the backend restart confound attribution.
 These numbers are a sanity check, not a measured plugin-specific improvement.
+
+## Publication update, 8 September 2026
+
+The implementation through `c572e63` was pushed to main. All 15 open issue
+threads received individual thank-you/status replies, including explicit limits
+for partial fixes. No issue was closed and no PR was marked merged.
+The first GitHub validation run exposed a missing Qt tools PATH entry in the
+container; the workflow now adds `/usr/lib/qt6/bin`. Validation is being rerun.
+No version tag or attested release has been published yet.

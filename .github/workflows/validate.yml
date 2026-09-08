@@ -33,6 +33,7 @@ jobs:
           echo '/usr/lib/qt6/bin' >> "$GITHUB_PATH"
       - name: Validate the exact checkout
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           mkdir -p /tmp/spotify-runtime
           chmod 700 /tmp/spotify-runtime
           export XDG_RUNTIME_DIR=/tmp/spotify-runtime

@@ -554,6 +554,10 @@ Item {
   }
 
   function applySettings(values) {
+    // A bar widget pushes its settings before the host hands it the layout
+    // entry. On a second monitor that empty push lands after the real one,
+    // and applying it would reset every stored setting to its default.
+    if (!Api.hasSettingValues(values)) return
     var previousDeviceName = deviceName
     var next = normalizedSettings(values)
     if (JSON.stringify(next) !== JSON.stringify(settings)) settings = next

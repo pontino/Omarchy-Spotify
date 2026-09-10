@@ -95,6 +95,17 @@ TestCase {
     compare(Api.normalizedScrollSpeed(1.13), 1.25)
   }
 
+  // A bar widget pushes its settings before the host hands it the layout
+  // entry. Treating that empty push as real resets every stored setting to
+  // its default, and on a second monitor it arrives after the real one.
+  function test_hasSettingValues_ignoresAnEmptyPush() {
+    compare(Api.hasSettingValues(undefined), false)
+    compare(Api.hasSettingValues(null), false)
+    compare(Api.hasSettingValues({}), false)
+    compare(Api.hasSettingValues({ deviceName: "Desk" }), true)
+    compare(Api.hasSettingValues({ clientId: "" }), true)
+  }
+
   function test_cacheFreshnessAndSleepDeadline_boundaries() {
     verify(Api.timestampIsFresh(1000, 5999, 5000))
     verify(!Api.timestampIsFresh(1000, 6000, 5000))

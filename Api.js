@@ -402,6 +402,12 @@ function normalizedShortcutHints(value) {
   return String(value || "On") === "Off" ? "Off" : "On"
 }
 
+function hasSettingValues(values) {
+  if (!values || typeof values !== "object") return false
+  for (var key in values) return true
+  return false
+}
+
 function shortcutSequenceList(value) {
   if (value === undefined || value === null || value === "") return []
   return Array.isArray(value) ? value : [value]

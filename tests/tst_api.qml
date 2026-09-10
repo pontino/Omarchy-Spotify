@@ -95,6 +95,19 @@ TestCase {
     compare(Api.normalizedScrollSpeed(1.13), 1.25)
   }
 
+  // An unusable sink name must fall back to the system default rather than
+  // reaching configure-spotifyd.sh, which rejects the write outright.
+  function test_normalizedAudioDevice_trimsAndRejectsUnusableNames() {
+    compare(Api.normalizedAudioDevice(undefined), "")
+    compare(Api.normalizedAudioDevice("  alsa_output.usb-Mini__Line2__sink  "),
+      "alsa_output.usb-Mini__Line2__sink")
+    compare(Api.normalizedAudioDevice('sink"name'), "")
+    compare(Api.normalizedAudioDevice("sink\\name"), "")
+    compare(Api.normalizedAudioDevice("sink\tname"), "")
+    compare(Api.normalizedAudioDevice(new Array(130).join("a")), "")
+    compare(Api.normalizedAudioDevice(new Array(129).join("a")).length, 128)
+  }
+
   // A bar widget pushes its settings before the host hands it the layout
   // entry. Treating that empty push as real resets every stored setting to
   // its default, and on a second monitor it arrives after the real one.
